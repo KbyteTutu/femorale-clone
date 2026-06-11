@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
-const { transformHtml } = require('./transform');
+const { transformHtml, rewriteCssUrls } = require('./transform');
 
 const configPath = path.join(__dirname, '..', 'config.json');
 
@@ -65,6 +65,12 @@ function createProxyMiddleware(targetUrl) {
         const { priceCoefficient } = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         const transformed = transformHtml(body, upstreamUrl, priceCoefficient);
         response.send(transformed);
+        return;
+      }
+
+      if (/text\/css/i.test(contentType)) {
+        const body = await upstreamResponse.text();
+        response.send(rewriteCssUrls(body, upstreamUrl));
         return;
       }
 

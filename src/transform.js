@@ -67,14 +67,18 @@ function rewriteCssUrls(cssText, baseUrl) {
   return cssText.replace(/url\(([^)]+)\)/gi, (match, rawUrl) => {
     const quote = rawUrl.trim().match(/^['"]/);
     const cleaned = rawUrl.trim().replace(/^['"]|['"]$/g, '');
-    const resolved = resolveUrl(cleaned, baseUrl);
 
-    if (resolved === cleaned) {
-      return match;
+    // If absolute URL points to target domain, strip to relative
+    const baseOrigin = new URL(baseUrl).origin;
+    if (cleaned.startsWith(baseOrigin)) {
+      const relative = cleaned.slice(baseOrigin.length) || '/';
+      const wrapper = quote ? quote[0] : '';
+      return `url(${wrapper}${relative}${wrapper})`;
     }
 
-    const wrapper = quote ? quote[0] : '';
-    return `url(${wrapper}${resolved}${wrapper})`;
+    // Keep relative URLs as-is (browser resolves against proxy CSS URL)
+    // Keep external absolute URLs as-is (data:, other domains, etc.)
+    return match;
   });
 }
 
