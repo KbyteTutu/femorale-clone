@@ -1,0 +1,4 @@
+# Sisyphus runtime
+.sisyphus/
+node_modules/
+.playwright-mcp/

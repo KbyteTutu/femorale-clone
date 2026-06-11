@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Likui — Admin</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Tahoma, sans-serif; font-size: 13px; background: #E8E8F2; color: #222; }
+.container { max-width: 780px; margin: 30px auto; background: #fff; border: 1px solid #ccc; padding: 24px; }
+
+h1 { font-size: 18px; margin-bottom: 20px; border-bottom: 2px solid #DFDFBF; padding-bottom: 8px; }
+
+.section { margin-bottom: 24px; }
+.section h2 { font-size: 14px; margin-bottom: 8px; color: #333; }
+
+label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px; color: #555; }
+input[type="text"],
+input[type="number"] {
+  font-family: Tahoma, sans-serif; font-size: 12px;
+  border: 1px solid #999; padding: 4px 6px; width: 100%;
+}
+input[type="number"] { width: 100px; }
+
+.coefficient-row { display: flex; align-items: center; gap: 8px; }
+.coefficient-row input { width: 100px; }
+
+table { width: 100%; border-collapse: collapse; }
+th { background: #DFDFBF; padding: 6px 8px; font-size: 11px; text-align: left; border: 1px solid #ccc; }
+td { padding: 4px 6px; border: 1px solid #e3e3e3; vertical-align: top; }
+td input { width: 100%; }
+
+.btn { font-family: Tahoma; font-size: 11px; font-weight: bold; padding: 4px 12px; cursor: pointer; border: 1px solid #999; }
+.btn-save { background: #DFDFBF; color: #000; }
+.btn-save:hover { background: #ccc48f; }
+.btn-add { background: #E8E8F2; }
+.btn-add:hover { background: #d0d0e0; }
+.btn-del { background: #f5e0e0; color: #900; border-color: #c88; }
+.btn-del:hover { background: #f0c8c8; }
+
+.msg { margin-top: 12px; padding: 8px 12px; font-weight: bold; display: none; }
+.msg-ok { background: #e0f0e0; color: #393; border: 1px solid #9c9; }
+.msg-err { background: #f5e0e0; color: #933; border: 1px solid #c99; }
+
+.actions { margin-top: 16px; display: flex; gap: 8px; }
+
+.bulk-area { width: 100%; height: 100px; font-family: Consolas, monospace; font-size: 11px; border: 1px solid #999; padding: 6px; resize: vertical; }
+.bulk-hint { font-size: 10px; color: #888; margin-top: 2px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Likui — Admin Panel</h1>
+
+  <div class="section">
+    <h2>Price Coefficient</h2>
+    <div class="coefficient-row">
+      <input type="number" id="coefficient" step="0.001" min="0.001">
+      <span style="font-size:11px;color:#666;">(proxy prices = original &times; coefficient)</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Order Items</h2>
+    <textarea class="bulk-area" id="bulkInput" placeholder="Name | Description | Price
+Cypraea tigris | Tiger Cowrie - GEM, 75mm | 25
+Conus textile | Textile Cone - F++, 60mm | 18"></textarea>
+    <div class="bulk-hint">Batch: name | description | price &mdash; one per line. Click Parse to fill table below.</div>
+    <div style="margin-bottom: 10px;">
+      <button class="btn btn-add" onclick="parseBulk()">Parse</button>
+      <button class="btn btn-del" onclick="document.getElementById('bulkInput').value=''" style="margin-left:4px">Clear</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:160px">Name</th>
+          <th>Description</th>
+          <th style="width:80px">Price ($)</th>
+          <th style="width:50px"></th>
+        </tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+    <div class="actions">
+      <button class="btn btn-add" onclick="addItem()">+ Add Item</button>
+      <button class="btn btn-save" onclick="save()">Save</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+
+<script>
+const CONFIG = {{config}};
+
+function init() {
+  document.getElementById('coefficient').value = CONFIG.priceCoefficient;
+  const lines = CONFIG.orderItems.map(i => `${i.name} | ${i.description || ''} | ${i.price}`);
+  document.getElementById('bulkInput').value = lines.join('\n');
+  CONFIG.orderItems.forEach(addRow);
+}
+
+function parseBulk() {
+  const text = document.getElementById('bulkInput').value.trim();
+  if (!text) return;
+  const tbody = document.getElementById('itemsBody');
+  tbody.innerHTML = '';
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const parts = line.split('|');
+    if (parts.length < 2) continue;
+    const name = (parts[0] || '').trim();
+    if (!name) continue;
+    const description = (parts[1] || '').trim();
+    const price = parseFloat((parts[2] || '0').trim()) || 0;
+    addRow({ name, description, price });
+  }
+  // update textarea to normalized format
+  const rows = document.querySelectorAll('#itemsBody tr');
+  const outlines = [];
+  for (const row of rows) {
+    const n = row.querySelector('.item-name').value;
+    const d = row.querySelector('.item-desc').value;
+    const p = row.querySelector('.item-price').value;
+    outlines.push(`${n} | ${d} | ${p}`);
+  }
+  document.getElementById('bulkInput').value = outlines.join('\n');
+}
+
+function addRow(item) {
+  item = item || { name: '', description: '', price: 0 };
+  const tbody = document.getElementById('itemsBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = [
+    `<td><input type="text" class="item-name" value="${esc(item.name)}"></td>`,
+    `<td><input type="text" class="item-desc" value="${esc(item.description || '')}"></td>`,
+    `<td><input type="number" class="item-price" value="${item.price || 0}" step="0.01" min="0" style="width:80px"></td>`,
+    `<td><button class="btn btn-del" onclick="this.closest('tr').remove()">X</button></td>`
+  ].join('');
+  tbody.appendChild(tr);
+}
+
+function addItem() { addRow(); }
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function msg(text, ok) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = 'msg ' + (ok ? 'msg-ok' : 'msg-err');
+  el.style.display = 'block';
+}
+
+async function save() {
+  const coefficient = parseFloat(document.getElementById('coefficient').value);
+  if (isNaN(coefficient) || coefficient <= 0) {
+    msg('Invalid price coefficient', false);
+    return;
+  }
+
+  const rows = document.querySelectorAll('#itemsBody tr');
+  const items = [];
+  for (const row of rows) {
+    const name = row.querySelector('.item-name').value.trim();
+    const description = row.querySelector('.item-desc').value.trim();
+    const price = parseFloat(row.querySelector('.item-price').value);
+    if (!name) continue;
+    items.push({ name, description, price: isNaN(price) ? 0 : price });
+  }
+
+  if (items.length === 0) {
+    msg('Add at least one order item', false);
+    return;
+  }
+
+  try {
+    const res = await fetch('/likui', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceCoefficient: coefficient, orderItems: items })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      msg('Saved. Changes are now live on /order and proxied pages.', true);
+    } else {
+      msg(data.error || 'Save failed', false);
+    }
+  } catch (e) {
+    msg('Network error: ' + e.message, false);
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>

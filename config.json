@@ -1,0 +1,22 @@
+{
+  "port": 3003,
+  "targetUrl": "http://www.femorale.com",
+  "priceCoefficient": 0.05,
+  "orderItems": [
+    {
+      "name": "Cypraea tigris",
+      "description": "Tiger Cowrie - GEM grade, 75mm, Philippines",
+      "price": 25
+    },
+    {
+      "name": "Conus textile",
+      "description": "Textile Cone - F++, 60mm, Australia",
+      "price": 18
+    },
+    {
+      "name": "Murex pecten",
+      "description": "Venus Comb Murex - F+, 120mm, Taiwan",
+      "price": 30
+    }
+  ]
+}
