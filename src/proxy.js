@@ -47,7 +47,7 @@ function createProxyMiddleware(targetUrl) {
             'user-agent': request.get('user-agent') || 'Mozilla/5.0 (compatible; FemoraleMirror/1.0)',
             'accept': request.get('accept') || '*/*',
             'accept-language': request.get('accept-language') || 'en-US,en;q=0.9',
-            'referer': request.get('referer') ? new URL(request.get('referer'), targetUrl).toString() : targetUrl,
+            'referer': targetUrl,
             'content-type': request.get('content-type') || undefined,
             'cookie': request.get('cookie') || undefined
           }).filter(([, value]) => value !== undefined)
