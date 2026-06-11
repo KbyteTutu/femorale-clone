@@ -93,17 +93,28 @@ function rewriteSrcset(srcset, baseUrl) {
 
       const parts = trimmed.split(/\s+/);
       const originalUrl = parts.shift();
-      const rewrittenUrl = resolveUrl(originalUrl, baseUrl);
+      const rewrittenUrl = rewriteResourceUrl(originalUrl, baseUrl);
       return [rewrittenUrl, ...parts].join(' ');
     })
     .join(', ');
+}
+
+function rewriteResourceUrl(value, targetUrl) {
+  if (!value) return value;
+  // If it's an absolute URL to the target domain, strip to relative
+  // so the browser loads it through the proxy (avoids mixed content)
+  if (isAbsoluteUrl(value)) {
+    return stripTargetDomain(value, targetUrl);
+  }
+  // Keep relative URLs as-is — browser resolves against proxy page URL
+  return value;
 }
 
 function rewriteAttributes($, baseUrl, targetUrl) {
   RESOURCE_ATTRS.forEach((attribute) => {
     $(`[${attribute}]`).each((_, element) => {
       const currentValue = $(element).attr(attribute);
-      $(element).attr(attribute, resolveUrl(currentValue, baseUrl));
+      $(element).attr(attribute, rewriteResourceUrl(currentValue, targetUrl));
     });
   });
 
